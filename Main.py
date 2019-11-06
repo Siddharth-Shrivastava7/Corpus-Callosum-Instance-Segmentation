@@ -68,7 +68,29 @@ def CE_Net_Train():
 
     #early_stopping = EarlyStopping(patience=20, verbose=True)
 
+    color_map = {
+        0: (0,0,0),
+        1: (255,0,0), 
+        2: (0,240,0),
+        3: (100,0,0),
+        4: (0,120,0),
+        5: (0,0,250)              
+        }
 
+    def viz_image(pred):    
+        
+        color = torch.zeros(3, pred.shape[1], pred.shape[2]) 
+
+        for k in color_map:
+
+            if(pred[k] == 1):
+
+                color[0] = color_map[k][0]
+                color[1] = color_map[k][1]
+                color[2] = color_map[k][2]
+
+        return color
+                        
 
     for epoch in range(1, total_epoch + 1):
         data_loader_iter = iter(data_loader)
@@ -79,6 +101,7 @@ def CE_Net_Train():
         # valid_epoch_dice_loss = 0
 
         for img, mask in data_loader_iter:
+
             solver.set_input(img, mask)
             train_loss, pred = solver.optimize()
             # train_loss, pred, train_dice_loss = solver.optimize()
@@ -86,19 +109,33 @@ def CE_Net_Train():
             train_epoch_loss += train_loss
             # train_epoch_dice_loss += train_dice_loss        
         
+        a = 0
         
         for img, mask in data_loader_iter_v:
+
             solver.set_input(img, mask)
             # valid_loss, pred, valid_dice_loss = solver.optimize_test()
             valid_loss, pred = solver.optimize_test()
             # sens,spec,acc,prec = solver.eval()
             valid_epoch_loss += valid_loss
             # valid_epoch_dice_loss += valid_dice_loss
+
+            #print(torch.unique(pred[a][4])) #print it
+            print(pred[a])
+
+            if( a % 10 == 0):
+                print('saving_pred_images after 10 batches')
+
+                img  = viz_image(pred[a,:,:,:])
+
+                torchvision.utils.save_image(img, "valid/pred"+str(epoch)+str(' ') + str(a) + ".jpg", nrow=1, padding=0)            
+
+            a = a + 1  
         
         # print(sens)
         # torchvision.utils.save_image(img[0, :, :, :], "valid/image_"+str(epoch) + ".jpg", nrow=1, padding=2, normalize=True, range=None, scale_each=False, pad_value=0)
-        torchvision.utils.save_image(mask[0, :, :, :], "valid/mask"+str(epoch) + ".jpg", nrow=1, padding=0)
-        torchvision.utils.save_image(pred[0, :, :, :], "valid/pred"+str(epoch) + ".jpg", nrow=1, padding=0)
+        #torchvision.utils.save_image(mask[0, :, :, :], "valid/mask"+str(epoch) + ".jpg", nrow=1, padding=0)
+        #torchvision.utils.save_image(pred[0, :, :, :], "valid/pred"+str(epoch) + ".jpg", nrow=1, padding=0)
  
         
         # show the original images, predication and ground truth on the visdom.

@@ -17,12 +17,13 @@ class weighted_cross_entropy(nn.Module):
     def __init__(self, num_classes=6, batch=True):
         super(weighted_cross_entropy, self).__init__()
         self.batch = batch
-        self.weight = torch.Tensor([52.] * num_classes).cuda()
-        self.ce_loss = nn.CrossEntropyLoss(weight=self.weight)
+        #self.weight = torch.Tensor( num_classes).cuda()
+        #self.ce_loss = nn.CrossEntropyLoss(weight = self.weight)
+        self.ce_loss = nn.CrossEntropyLoss()
 
     def __call__(self, y_true, y_pred):
 
-        y_ce_true = y_true.squeeze(dim=1).long()
+        y_ce_true = y_true.long()
 
         a = self.ce_loss(y_pred, y_ce_true)
 
@@ -56,7 +57,6 @@ class dice_loss(nn.Module):
 
         b = self.soft_dice_loss(y_true, y_pred)
         return b
-
 
 
 def test_weight_cross_entropy():
@@ -101,21 +101,75 @@ class dice_bce_loss(nn.Module):
         return a,b
 
 
+# class dice_loss(nn.Module):
+#     def __init__(self):
+#         super(dice_loss,self).__init__()
+
+
+#     def forward(true, logits, eps=1e-7):
+#         """Computes the Sørensen–Dice loss.
+#         Note that PyTorch optimizers minimize a loss. In this
+#         case, we would like to maximize the dice loss so we
+#         return the negated dice loss.
+#         Args:
+#             true: a tensor of shape [B, 1, H, W].
+#             logits: a tensor of shape [B, C, H, W]. Corresponds to
+#                 the raw output or logits of the model.
+#             eps: added to the denominator for numerical stability.
+#         Returns:
+#             dice_loss: the Sørensen–Dice loss.
+#         """
+#         num_classes = logits.shape[1]
+#         if num_classes == 1:
+#             true_1_hot = torch.eye(num_classes + 1)[true.squeeze(1)]
+#             true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
+#             true_1_hot_f = true_1_hot[:, 0:1, :, :]
+#             true_1_hot_s = true_1_hot[:, 1:2, :, :]
+#             true_1_hot = torch.cat([true_1_hot_s, true_1_hot_f], dim=1)
+#             pos_prob = torch.sigmoid(logits)
+#             neg_prob = 1 - pos_prob
+#             probas = torch.cat([pos_prob, neg_prob], dim=1)
+#         else:
+#             # true_1_hot = torch.eye(num_classes)[true.squeeze(1)]
+#             true_1_hot = torch.eye(num_classes)[true]
+#             true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
+#             probas = F.softmax(logits, dim=1)
+
+#         true_1_hot = true_1_hot.type(logits.type())
+#         dims = (0,) + tuple(range(2, true.ndimension()))
+#         intersection = torch.sum(probas * true_1_hot, dims)
+#         cardinality = torch.sum(probas + true_1_hot, dims)
+#         dice_score = (2. * intersection / (cardinality + eps)).mean()
+
+#         return (1 - dice_score)
+
+
+
+
 class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
 
-    def forward(self, input, target):
-        N, H, W = target.size(0), target.size(2), target.size(3)
-        smooth = 1
+    def forward(self, inp, target):
+        N, H, W = target.size(0), target.size(1), target.size(2)
+        smooth = 0.0
 
-        input_flat = input.view(N, -1)
-        target_flat = target.view(N, -1)
+        i = torch.sum(inp)
+        j = torch.sum(target)
 
-        intersection = input_flat * target_flat
+        intersection = torch.sum(inp * target)
 
-        loss = 2 * (intersection.sum(1) + smooth) / (input_flat.sum(1) + target_flat.sum(1) + smooth)
-        loss = 1 - loss.sum() / N
+        score = (2. * intersection + smooth) / (i + j + smooth)
+
+        loss = 1 - score.mean()
+
+        # input_flat = input.view(N, -1)
+        # target_flat = target.view(N, -1)
+
+        # intersection = input_flat * target_flat
+
+        # loss = 2 * (intersection.sum(1) + smooth) / (input_flat.sum(1) + target_flat.sum(1) + smooth)
+        # loss = 1 - loss.sum() / N
 
         return loss
 
@@ -130,9 +184,20 @@ class MulticlassDiceLoss(nn.Module):
     def __init__(self):
         super(MulticlassDiceLoss, self).__init__()
 
-    def forward(self, input, target, weights=None):
+    def forward(self, inp, target, weights=None):
 
-        C = target.shape[1]
+        C = inp.shape[1]
+
+        inp = F.softmax(inp,dim=1)
+
+        # print(inp.shape)
+        # print(target.shape)
+
+        target = F.one_hot(target.long(),num_classes=C)
+
+        target = target.to(torch.float)
+
+        target = target.permute(0,3,1,2)
 
         # if weights is None:
         # weights = torch.ones(C) #uniform weights for all classes
@@ -141,7 +206,7 @@ class MulticlassDiceLoss(nn.Module):
         totalLoss = 0
 
         for i in range(C):
-            diceLoss = dice(input[:, i, :, :], target[:, i,:, :])
+            diceLoss = dice(inp[:, i, :, :], target[:, i,:, :])
             if weights is not None:
                 diceLoss *= weights[i]
             totalLoss += diceLoss

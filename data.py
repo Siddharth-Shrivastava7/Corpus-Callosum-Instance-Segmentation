@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 import os
 import scipy.misc as misc
+from custom_functions import *
+
 
 def randomHueSaturationValue(image, hue_shift_limit=(-180, 180),
                              sat_shift_limit=(-255, 255),
@@ -30,44 +32,44 @@ def randomHueSaturationValue(image, hue_shift_limit=(-180, 180),
 
     return image
 
-def randomShiftScaleRotate(image, mask,
-                           shift_limit=(-0.0, 0.0),
-                           scale_limit=(-0.0, 0.0),
-                           rotate_limit=(-0.0, 0.0), 
-                           aspect_limit=(-0.0, 0.0),
-                           borderMode=cv2.BORDER_CONSTANT, u=0.5):
-    if np.random.random() < u:
-        height, width, channel = image.shape
+# def randomShiftScaleRotate(image, mask,
+#                            shift_limit=(-0.0, 0.0),
+#                            scale_limit=(-0.0, 0.0),
+#                            rotate_limit=(-0.0, 0.0), 
+#                            aspect_limit=(-0.0, 0.0),
+#                            borderMode=cv2.BORDER_CONSTANT, u=0.5):
+#     if np.random.random() < u:
+#         height, width, channel = image.shape
 
-        angle = np.random.uniform(rotate_limit[0], rotate_limit[1])
-        scale = np.random.uniform(1 + scale_limit[0], 1 + scale_limit[1])
-        aspect = np.random.uniform(1 + aspect_limit[0], 1 + aspect_limit[1])
-        sx = scale * aspect / (aspect ** 0.5)
-        sy = scale / (aspect ** 0.5)
-        dx = round(np.random.uniform(shift_limit[0], shift_limit[1]) * width)
-        dy = round(np.random.uniform(shift_limit[0], shift_limit[1]) * height)
+#         angle = np.random.uniform(rotate_limit[0], rotate_limit[1])
+#         scale = np.random.uniform(1 + scale_limit[0], 1 + scale_limit[1])
+#         aspect = np.random.uniform(1 + aspect_limit[0], 1 + aspect_limit[1])
+#         sx = scale * aspect / (aspect ** 0.5)
+#         sy = scale / (aspect ** 0.5)
+#         dx = round(np.random.uniform(shift_limit[0], shift_limit[1]) * width)
+#         dy = round(np.random.uniform(shift_limit[0], shift_limit[1]) * height)
 
-        cc = np.math.cos(angle / 180 * np.math.pi) * sx
-        ss = np.math.sin(angle / 180 * np.math.pi) * sy
-        rotate_matrix = np.array([[cc, -ss], [ss, cc]])
+#         cc = np.math.cos(angle / 180 * np.math.pi) * sx
+#         ss = np.math.sin(angle / 180 * np.math.pi) * sy
+#         rotate_matrix = np.array([[cc, -ss], [ss, cc]])
 
-        box0 = np.array([[0, 0], [width, 0], [width, height], [0, height], ])
-        box1 = box0 - np.array([width / 2, height / 2])
-        box1 = np.dot(box1, rotate_matrix.T) + np.array([width / 2 + dx, height / 2 + dy])
+#         box0 = np.array([[0, 0], [width, 0], [width, height], [0, height], ])
+#         box1 = box0 - np.array([width / 2, height / 2])
+#         box1 = np.dot(box1, rotate_matrix.T) + np.array([width / 2 + dx, height / 2 + dy])
 
-        box0 = box0.astype(np.float32)
-        box1 = box1.astype(np.float32)
-        mat = cv2.getPerspectiveTransform(box0, box1)
-        image = cv2.warpPerspective(image, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
-                                    borderValue=(
-                                        0, 0,
-                                        0,))
-        mask = cv2.warpPerspective(mask, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
-                                   borderValue=(
-                                       0, 0,
-                                       0,))
+#         box0 = box0.astype(np.float32)
+#         box1 = box1.astype(np.float32)
+#         mat = cv2.getPerspectiveTransform(box0, box1)
+#         image = cv2.warpPerspective(image, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
+#                                     borderValue=(
+#                                         0, 0,
+#                                         0,))
+#         mask = cv2.warpPerspective(mask, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
+#                                    borderValue=(
+#                                        0, 0,
+#                                        0,))
 
-    return image, mask
+#     return image, mask
 
 def randomHorizontalFlip(image, mask, u=0.5):
     if np.random.random() < u:
@@ -121,42 +123,59 @@ def default_loader(img_path, mask_path):
     # print(np.shape(mask))
 
     img = np.array(img, np.float32).transpose(2,0,1)/255.0 * 3.2 - 1.6
-    mask = np.array(mask, np.float32).transpose(2,0,1)/255.0
+    #mask = np.array(mask, np.float32).transpose(2,0,1)/255.0
+    mask = np.array(mask, np.float32)/255.0
     mask[mask >= 0.5] = 1
     mask[mask <= 0.5] = 0
     #mask = abs(mask-1)
     return img, mask 
 
-
-def default_Brain_loader(img_path, mask_path):
-    img = cv2.imread(img_path)
-    img = cv2.resize(img, (256,256))
-    
-    # mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-    mask = np.array(Image.open(mask_path).convert('L'))
-
-    mask = cv2.resize(mask, (256,256))
+def augment(img,mask):
 
     img = randomHueSaturationValue(img,
                                    hue_shift_limit=(-30, 30),
                                    sat_shift_limit=(-5, 5),
                                    val_shift_limit=(-15, 15))
 
-    img, mask = randomShiftScaleRotate(img, mask,
-                                       shift_limit=(-0.1, 0.1),
-                                       scale_limit=(-0.1, 0.1),
-                                       aspect_limit=(-0.1, 0.1),
-                                       rotate_limit=(-0, 0))
     img, mask = randomHorizontalFlip(img, mask)
     img, mask = randomVerticleFlip(img, mask)
     img, mask = randomRotate90(img, mask)
 
-    mask = np.expand_dims(mask, axis=2)
-    img = np.array(img, np.float32).transpose(2, 0, 1) / 255.0 * 3.2 - 1.6
-    mask = np.array(mask, np.float32).transpose(2, 0, 1) / 255.0
-    mask[mask >= 0.5] = 1
-    mask[mask <= 0.5] = 0
+    img = img.transpose(2,0,1) / 255 
+
+    return img,mask
+    
+
+
+def default_Brain_loader(img_path, mask_path):
+
+    #img = cv2.imread(img_path) 
+
+    #img = cv2.resize(img, (256,256))
+    img = np.array(Image.open(img_path))
+    
+    # mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    # mask = np.array(Image.open(mask_path).convert('L'))
+
+    mask = np.array(Image.open(mask_path))
+
+    #mask = cv2.resize(mask, (256,256))
+
+    # mask = np.expand_dims(mask, axis=2)
+
+    #img = np.array(img, np.float32).transpose(2, 0, 1) / 255.0 * 3.2 - 1.6
+
+    # img = np.array(img, np.float32).transpose(2, 0, 1) / 255.0 
+ 
+    # print(np.unique(img))
+
+    # mask = np.array(mask, np.float32).transpose(2, 0, 1) / 255.0
+    mask = np.array(mask, np.float32) 
+
+    # mask[mask >= 0.5] = 1
+    # mask[mask < 0.5] = 0
     # mask = abs(mask-1)
+
     return img, mask
 
 # def read_ORIGA_datasets(root_path, mode='train'):
@@ -327,12 +346,20 @@ class ImageFolder(data.Dataset):
             print('Default dataset is Messidor')
             self.images, self.labels = read_Messidor_datasets(self.root, self.mode)
 
+    
+
     def __getitem__(self, index):
 
         img, mask = default_Brain_loader(self.images[index], self.labels[index])
-        img = torch.Tensor(img)
-        mask = torch.Tensor(mask)
-        return img, mask
+        #print(img.shape)
+        parcel = parcellation(mask)
+        img_a, parcel_a = augment(img,parcel)
+        label = image_to_label(parcel_a)
+        #label = np.expand_dims(label,axis=0) 
+        img = torch.Tensor(img_a)
+        label = torch.Tensor(label)
+        #print(label.shape)
+        return img, label
 
     def __len__(self):
         assert len(self.images) == len(self.labels), 'The number of images must be equal to labels'

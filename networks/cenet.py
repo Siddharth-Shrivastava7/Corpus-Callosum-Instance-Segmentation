@@ -10,7 +10,7 @@ from tensorboardX import SummaryWriter
 import numpy as np
 
 
-writer = SummaryWriter()
+#writer = SummaryWriter()
 
 nonlinearity = partial(F.relu, inplace=True)
 
@@ -226,7 +226,7 @@ class CE_Net_(nn.Module):
         out = self.finalrelu2(out)
         out = self.finalconv3(out)
 
-        out = F.sigmoid(out)
+        #out = F.sigmoid(out)
 
         return out
 
@@ -565,17 +565,17 @@ class UNet(nn.Module):
         return F.sigmoid(x)
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
-model = CE_Net_().to(device)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+# model = CE_Net_().to(device)
 
-dummy_input = torch.rand(8, 3,512,512)
+# dummy_input = torch.rand(8, 3,512,512)
 
 # out = model.forward(dummy_input)
 # print(out.shape)
 
 
-writer.add_graph(model, dummy_input, False)
-writer.close()
+# writer.add_graph(model, dummy_input, False)
+# writer.close()
 
 # summary( model, (3, 512, 512))
 

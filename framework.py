@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable as V
-from loss import metrics 
+from loss import MulticlassDiceLoss
 
 import cv2
 import numpy as np
@@ -68,7 +68,7 @@ class MyFrame():
         loss = self.loss(self.mask, pred)
         loss.backward()
         self.optimizer.step()
-        return loss.data, pred
+        return loss.item(), pred
 
     def optimize_test(self):
         with torch.no_grad():
@@ -77,7 +77,7 @@ class MyFrame():
             loss = self.loss(self.mask, pred)
             # loss.backward()
             # self.optimizer.step()
-        return loss.data, pred
+        return loss.item(), pred
         
     def save(self, path):
         torch.save(self.net.state_dict(), path)
@@ -104,11 +104,12 @@ class MyFrame():
         self.forward()
         self.optimizer.zero_grad()
         pred = self.net.forward(self.img)
-        met = metrics(self.mask, pred)
-        a = met.sensitivity()
-        b = met.specificity()
-        c = met.accuracy()
-        d = met.precision()
-        return a,b,c,d 
+        self.dice = MulticlassDiceLoss()
+        d_l = self.dice(pred,self.mask) 
+        # a = met.sensitivity()
+        # b = met.specificity()
+        # c = met.accuracy()
+        # d = met.precision()
+        return d_l.item()
 
     
