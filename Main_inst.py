@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import cv2
 import os
+import shutil
 from time import time
 
 import torch
@@ -26,15 +27,88 @@ import image_utils
 import numpy as np
 import matplotlib.pyplot as plt
 
-writer = SummaryWriter()
+import argparse 
 
 # Please specify the ID of graphics cards that you want to use
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 from custom_functions import *
 
 
+parser = argparse.ArgumentParser()
 
-def CE_Net_Train():
+
+parser.add_argument('--epochs', default=90, type=int, metavar='N',
+                    help='number of total epochs to run')
+
+parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
+                    help='manual epoch number (useful on restarts)') 
+
+parser.add_argument('-b', '--batch-size', default=256, type=int,
+                    metavar='N',
+                    help='mini-batch size (default: 256)')
+
+parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+                    metavar='LR', help='initial learning rate', dest='lr')
+
+
+parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+                    metavar='W', help='weight decay (default: 1e-4)',
+                    dest='weight_decay') 
+
+parser.add_argument('--resume', default='', type=str, metavar='PATH',
+                    help='path to latest checkpoint (default: none)') 
+
+parser.add_argument('--pretrained', dest='pretrained', action='store_true',
+                    help='use pre-trained model') 
+
+parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+                    help='evaluate model on validation set') 
+
+parser.add_argument('--gpu', default=0, type=int,
+                    help='GPU id to use.')
+
+writer = SummaryWriter()
+
+best_acc = 0
+
+args = parser.parse_args() 
+
+
+def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, 'model_best.pth.tar') 
+
+
+def CE_Net_Train(args):
+
+    global best_acc
+
+    # optionally resume from a checkpoint
+
+    if args.resume:
+
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            if args.gpu is None:
+                checkpoint = torch.load(args.resume)
+            else:
+                # Map model to be loaded to specified single gpu.
+                loc = 'cuda:{}'.format(args.gpu)
+                checkpoint = torch.load(args.resume, map_location=loc)
+            args.start_epoch = checkpoint['epoch']
+            best_acc = checkpoint['best_acc']
+            if args.gpu is not None:
+                # best_acc1 may be from a checkpoint from a different GPU
+                best_acc = best_acc.to(args.gpu)
+            model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.resume, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+
+
     NAME = 'CE-Net' + Constants.ROOT.split('/')[-1]
 
     # run the Visdom
@@ -106,7 +180,7 @@ def CE_Net_Train():
     #     return color
                         
 
-    for epoch in range(1, total_epoch + 1):
+    for epoch in range(args.start_epoch, args.epochs): 
         data_loader_iter = iter(data_loader)
         train_epoch_loss = 0
         data_loader_iter_v = iter(data_loader_v)
@@ -224,7 +298,7 @@ def CE_Net_Train():
         # writer.add_scalar('valid_epoch_dice_loss',valid_epoch_dice_loss,epoch)
 
         writer.add_scalars('Epoch_loss',{'train_epoch_loss': train_epoch_loss, 'train_epoch_dice_loss': train_epoch_dice_loss,
-        'valid_epoch_loss':valid_epoch_loss,'valid_epoch_dice_loss':valid_epoch_dice_loss},epoch)
+        'valid_epoch_loss':valid_epoch_loss,'valid_epoch_dice_loss':valid_epoch_dice_loss},epoch) 
     
 
         # print("saving images")
@@ -237,6 +311,21 @@ def CE_Net_Train():
         # print(mylog, 'valid_dice_loss:', valid_epoch_dice_loss)
         # print(mylog, 'sens:', sens)
         # print(mylog, 'SHAPE:', Constants.Image_size)
+
+        acc = valid_epoch_loss
+
+        # remember best acc@1 and save checkpoint
+        is_best = acc > best_acc
+        best_acc = max(acc1, best_acc)
+
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'arch': args.arch,
+            'state_dict': model.state_dict(),
+            'best_acc1': best_acc1,
+            'optimizer' : optimizer.state_dict(),
+        }, is_best)
+
         print('in Training')
         print('epoch:', epoch, '    time:', int(time() - tic))
         print('train_loss:', train_epoch_loss)
@@ -248,27 +337,30 @@ def CE_Net_Train():
         print('valid_dice_loss', valid_epoch_dice_loss)
         print('--------------------------------------------------')
 
-        if valid_epoch_best_loss == 0:
-            valid_epoch_best_loss = valid_epoch_loss
 
-        elif valid_epoch_loss >= valid_epoch_best_loss:
-            no_optim += 1
 
-        elif valid_epoch_loss < valid_epoch_best_loss:
-            no_optim = 0
-            valid_epoch_best_loss = valid_epoch_loss
-            solver.save('./weights/' + 'best' + '.pth')
 
-        elif no_optim > 20:
-            #  print(mylog, 'early stop at %d epoch' % epoch)
-             print('early stop at %d epoch' % epoch)
-             break
+        # if valid_epoch_best_loss == 0:
+        #     valid_epoch_best_loss = valid_epoch_loss
 
-        elif no_optim > Constants.NUM_UPDATE_LR:
-            if solver.old_lr < 5e-7:
-                break
-            solver.load('./weights/' + 'best' + '.pth')
-            solver.update_lr(2.0, factor=True)
+        # elif valid_epoch_loss >= valid_epoch_best_loss:
+        #     no_optim += 1
+
+        # elif valid_epoch_loss < valid_epoch_best_loss:
+        #     no_optim = 0
+        #     valid_epoch_best_loss = valid_epoch_loss
+        #     solver.save('./weights/' + 'best' + '.pth')
+
+        # elif no_optim > 20:
+        #     #  print(mylog, 'early stop at %d epoch' % epoch)
+        #      print('early stop at %d epoch' % epoch)
+        #      break
+
+        # elif no_optim > Constants.NUM_UPDATE_LR:
+        #     if solver.old_lr < 5e-7:
+        #         break 
+        #     solver.load('./weights/' + 'best' + '.pth')
+        #     solver.update_lr(2.0, factor=True)
 
         #model = CE_Net_()
         
