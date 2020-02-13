@@ -9,6 +9,7 @@ from functools import partial
 from tensorboardX import SummaryWriter
 import numpy as np
 
+# resnet pretrained in cenet encoder 
 
 #writer = SummaryWriter()
 
