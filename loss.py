@@ -10,7 +10,7 @@ from torch.autograd import Variable
 import cv2
 import numpy
 
-import skimage as ski 
+#import skimage as ski 
 from sklearn.metrics import confusion_matrix
 
 class weighted_cross_entropy(nn.Module):
