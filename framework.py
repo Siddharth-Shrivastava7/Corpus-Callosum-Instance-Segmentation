@@ -8,8 +8,14 @@ import numpy as np
 
 
 class MyFrame():
-    def __init__(self, net, loss, lr=2e-4, evalmode=False):
-        self.net = net().cuda()
+    def __init__(self, net, loss, mode = 'cuda', lr=2e-4, evalmode=False):
+
+        if mode == 'cpu':
+            self.net = net()
+        else: 
+            self.net = net().cuda()
+            
+        self.mode = mode
         #self.net = net()
         #self.net = torch.nn.DataParallel(self.net, device_ids=range(torch.cuda.device_count()))
         self.optimizer = torch.optim.Adam(params=self.net.parameters(), lr=lr)
@@ -55,11 +61,13 @@ class MyFrame():
         return mask
         
     def forward(self, volatile=False):
-        self.img = V(self.img.cuda(), volatile=volatile)
-        # self.img = V(self.img, volatile=volatile)
-        if self.mask is not None:
+        if self.mode == 'cpu':
+            self.img = V(self.img, volatile=volatile)
+            self.mask = V(self.mask, volatile=volatile)
+        else:
+            self.img = V(self.img.cuda(), volatile=volatile) 
             self.mask = V(self.mask.cuda(), volatile=volatile)
-            # self.mask = V(self.mask, volatile=volatile)
+
 
     def optimize(self):
         self.forward()
@@ -82,12 +90,19 @@ class MyFrame():
     def save(self, path):
         torch.save(self.net.state_dict(), path)
         
-    def load(self, path):
-        # device = torch.device("cuda" if args.cuda else "cpu")
-        # device = torch.device("cpu")
-        # self.net = nn.DataParallel(self.net)
-        # self.net.load_state_dict(torch.load(path,map_location= "cpu" ))
-        self.net.load_state_dict(torch.load(path))
+    def load(self, path,mode='cuda'):
+
+        if mode == 'cpu':
+            device = torch.device("cpu")
+            self.net.load_state_dict(torch.load(path,map_location= "cpu" ))
+            self.net.to(device)
+        else:
+            device = torch.device("cuda")
+            # device = torch.device("cpu")
+            # self.net = nn.DataParallel(self.net)
+            # self.net.load_state_dict(torch.load(path,map_location= "cpu" ))
+            self.net.load_state_dict(torch.load(path))
+            self.net.to(device)
     
     def update_lr(self, new_lr, factor=False):
         if factor:
