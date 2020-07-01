@@ -1,2 +1,2 @@
 # Corpus-Callosum-Instance-Segmentation
-Corpus Callosum being parcellated and segmented at once using Deep Learning (end to end)
+I have performed Instance segmentation of Corpus Callosum using a Novel CNN architecture, build on top of Context-Encoder Network (CE-Net). I have generated the ground Truth on the fly using a novel parcellation algorithm based on witelson scheme. It outputs a Multi-Class Dice Similarity Score of 0.932. This is the first time in my knowledge when a Corpus Callosum present in the brain has been Segmented into various portions by utilising Deep learning. This can be useful in producing the Bio-markers present in Corpus Callosum for diagnosing the Autistic or Alzheimer Suffer.
