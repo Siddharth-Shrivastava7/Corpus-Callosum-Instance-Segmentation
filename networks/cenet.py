@@ -9,7 +9,6 @@ from functools import partial
 from tensorboardX import SummaryWriter
 import numpy as np
 
-# resnet pretrained in cenet encoder 
 
 #writer = SummaryWriter()
 
@@ -537,7 +536,7 @@ class outconv(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels=3, n_classes=1):
+    def __init__(self, n_channels=3, n_classes=8):
         super(UNet, self).__init__()
         self.inc = inconv(n_channels, 64)
         self.down1 = down(64, 128)
@@ -563,7 +562,8 @@ class UNet(nn.Module):
         x = self.up4(x, x1)
         x = self.outc(x)
         #x = self.relu(x)
-        return F.sigmoid(x)
+#         return F.sigmoid(x)
+        return x
 
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
