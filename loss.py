@@ -10,7 +10,7 @@ from torch.autograd import Variable
 import cv2
 import numpy
 
-#import skimage as ski 
+import skimage as ski 
 from sklearn.metrics import confusion_matrix
 
 class weighted_cross_entropy(nn.Module):
@@ -187,6 +187,8 @@ class MulticlassDiceLoss(nn.Module):
     def forward(self, inp, target, weights=None):
 
         C = inp.shape[1]
+        
+#         print(C)
 
         inp = F.softmax(inp,dim=1)
 
