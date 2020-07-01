@@ -130,18 +130,25 @@ def default_loader(img_path, mask_path):
     #mask = abs(mask-1)
     return img, mask 
 
-def augment(img,mask):
+def augment(img,mask,mode):
 
-    img = randomHueSaturationValue(img,
-                                   hue_shift_limit=(-30, 30),
-                                   sat_shift_limit=(-5, 5),
-                                   val_shift_limit=(-15, 15))
+    if mode == 'train':
 
-    img, mask = randomHorizontalFlip(img, mask)
-    img, mask = randomVerticleFlip(img, mask)
-    img, mask = randomRotate90(img, mask)
+        img = randomHueSaturationValue(img,
+                                    hue_shift_limit=(-30, 30),
+                                    sat_shift_limit=(-5, 5),
+                                    val_shift_limit=(-15, 15))
 
-    img = img.transpose(2,0,1) / 255 
+        img, mask = randomHorizontalFlip(img, mask)
+        img, mask = randomVerticleFlip(img, mask)
+        img, mask = randomRotate90(img, mask)
+
+        img = img.transpose(2,0,1) / 255 
+
+    else:
+
+        img = img.transpose(2,0,1) / 255 
+
 
     return img,mask
     
@@ -255,6 +262,10 @@ def read_Brain_datasets(root_path, mode):
     elif mode == 'valid':
         image_root = os.path.join(root_path, 'valid/image')
         gt_root = os.path.join(root_path, 'valid/mask')
+
+    elif mode == 'test':
+        image_root = './test/img/' 
+        gt_root = './test/mask/'
     
 
     # for image_name in os.listdir(image_root):
@@ -353,7 +364,7 @@ class ImageFolder(data.Dataset):
         img, mask = default_Brain_loader(self.images[index], self.labels[index])
         #print(img.shape)
         parcel = parcellation(mask)
-        img_a, parcel_a = augment(img,parcel)
+        img_a, parcel_a = augment(img,parcel,self.mode)
         label = image_to_label(parcel_a)
         #label = np.expand_dims(label,axis=0) 
         img = torch.Tensor(img_a)
